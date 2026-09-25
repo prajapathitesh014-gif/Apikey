@@ -10,6 +10,7 @@ import VariableFontHoverByRandomLetter from "@/components/fancy/text/variable-fo
 import StackingCardsDemo from "@/components/fancy/blocks/StackingCardsDemo";
 import { Skiper106 } from "@/components/fancy/inputs/smooth-input";
 import OrbitingCirclesDemo from "@/components/magicui/OrbitingCirclesDemo";
+import { BrandLogo, BrandIcon } from "@/components/ui/BrandLogo";
 import {
   Shield,
   Sparkles,
@@ -51,12 +52,10 @@ export default function LandingPage() {
           {/* Card Inner Navigation */}
           <div className="flex items-center justify-between pb-8 border-b border-slate-100">
             {/* Logo */}
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-lg bg-slate-950 flex items-center justify-center text-white">
-                <Lock className="w-3.5 h-3.5" />
-              </div>
-              <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight">
-                SecureMind
+            <div className="flex items-center gap-2.5">
+              <BrandIcon size="sm" withGlow={false} />
+              <span className="font-extrabold text-sm sm:text-base text-slate-900 tracking-tight flex items-center gap-1.5">
+                SecureMind <span className="text-orange-600 font-mono text-xs font-bold px-1 py-0.2 rounded bg-orange-100 border border-orange-200">AST</span>
               </span>
             </div>
 

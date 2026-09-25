@@ -16,6 +16,7 @@ import {
   AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export default function SignupPage() {
   const router = useRouter();
@@ -83,15 +84,8 @@ export default function SignupPage() {
   return (
     <div className="min-h-screen bg-warm-canvas flex flex-col justify-center items-center px-4 py-12 selection:bg-orange-500/30 selection:text-orange-200">
       {/* Brand Header */}
-      <div className="text-center mb-8 space-y-2">
-        <Link href="/" className="inline-flex items-center gap-2.5 group">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-white shadow-xl shadow-orange-500/20 group-hover:scale-105 transition-transform">
-            <Lock className="w-5 h-5" />
-          </div>
-          <span className="font-extrabold text-2xl text-white tracking-tight">
-            SecureMind <span className="text-orange-400 font-mono text-sm">AST</span>
-          </span>
-        </Link>
+      <div className="text-center mb-8 flex flex-col items-center space-y-2">
+        <BrandLogo href="/" size="lg" />
         <p className="text-xs text-orange-200/60 font-mono">
           Zero-Trust AST API Security & Copilot Console
         </p>

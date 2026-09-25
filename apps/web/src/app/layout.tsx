@@ -17,8 +17,15 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "SentinelAPI — API Security Copilot",
+  title: "SecureMind AST • SentinelAPI — API Security Copilot",
   description: "Deterministic AST Security Scanner + AI Reasoning Layer for OpenAPI and Sandboxes",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico" }
+    ],
+    apple: "/favicon.svg"
+  }
 };
 
 export default function RootLayout({

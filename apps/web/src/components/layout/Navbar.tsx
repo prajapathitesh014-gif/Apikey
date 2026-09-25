@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { Shield, Sparkles, Activity, PlusCircle, LayoutDashboard, Bug, FileSpreadsheet, Server, Lock } from "lucide-react";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 
 export function Navbar() {
   const [scannerOnline, setScannerOnline] = useState<boolean | null>(null);
@@ -24,19 +25,7 @@ export function Navbar() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center shadow-lg shadow-orange-500/20 group-hover:scale-105 transition-transform text-white font-black">
-            <Lock className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-1.5">
-              <span className="font-extrabold tracking-tight text-base text-white">
-                SecureMind <span className="text-orange-400 font-mono text-xs">AST</span>
-              </span>
-            </div>
-            <p className="text-[10px] text-orange-200/60 hidden sm:block font-mono">Autonomous API Security</p>
-          </div>
-        </Link>
+        <BrandLogo href="/" size="md" />
 
         {/* Center Nav */}
         <nav className="hidden md:flex items-center gap-6 text-xs font-semibold text-orange-100/80">
