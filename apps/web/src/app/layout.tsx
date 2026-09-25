@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Outfit, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "sonner";
+import { SentinelChatbot } from "@/components/chatbot/SentinelChatbot";
 
 const outfit = Outfit({
   subsets: ["latin"],
@@ -43,8 +44,12 @@ export default function RootLayout({
           {children}
         </div>
         
+        {/* Interactive AI Chatbot Copilot */}
+        <SentinelChatbot />
+
         <Toaster position="bottom-right" theme="dark" richColors />
       </body>
     </html>
   );
 }
+
