@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { INITIAL_SCANS, INITIAL_TARGETS, SAMPLE_FINDINGS } from "@/lib/mock-data";
 import { FindingItem } from "@/types";
@@ -16,31 +16,66 @@ import {
   PlusCircle,
   Clock,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  Radio,
+  Play,
+  CheckCircle2,
+  Lock,
+  Zap,
+  Terminal
 } from "lucide-react";
+import { toast } from "sonner";
+import { BrandIcon } from "@/components/ui/BrandLogo";
 
 export default function DashboardOverviewPage() {
   const [selectedFinding, setSelectedFinding] = useState<FindingItem | null>(null);
+  const [simulating, setSimulating] = useState(false);
+  const [simPackets, setSimPackets] = useState<Array<{ id: number; method: string; path: string; status: string; result: "BLOCKED" | "DETECTED" | "MITIGATED" }>>([
+    { id: 1, method: "GET", path: "/api/v1/orders/ord_9999", status: "HTTP 403", result: "MITIGATED" },
+    { id: 2, method: "GET", path: "/api/v1/users/usr_admin/profile", status: "HTTP 401", result: "BLOCKED" },
+    { id: 3, method: "POST", path: "/api/v1/auth/reset-password", status: "HTTP 429", result: "BLOCKED" },
+    { id: 4, method: "GET", path: "/api/v1/analytics/export", status: "HTTP 403", result: "MITIGATED" },
+  ]);
 
   const totalEndpoints = 38;
   const totalFindings = SAMPLE_FINDINGS.length;
   const criticalCount = SAMPLE_FINDINGS.filter((f) => f.severity === "CRITICAL").length;
   const riskScore = 78;
 
+  const handleRunSimulation = () => {
+    setSimulating(true);
+    toast.info("🔴 Launching Red-Team AST Attack Probe Simulation...");
+
+    setTimeout(() => {
+      setSimPackets(prev => [
+        {
+          id: Date.now(),
+          method: "GET",
+          path: `/api/v1/orders/ord_${Math.floor(Math.random() * 9000 + 1000)}`,
+          status: "HTTP 403 (AST Rule)",
+          result: "BLOCKED"
+        },
+        ...prev.slice(0, 5)
+      ]);
+      setSimulating(false);
+      toast.success("🛡️ Blue-Team Zero-Trust Boundary successfully contained attack vector!");
+    }, 1500);
+  };
+
   return (
     <div className="space-y-8">
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-white tracking-tight">Security Overview</h1>
-          <p className="text-xs text-slate-400 mt-1">
-            Realtime AST posture across registered sandbox targets
+          <h1 className="text-2xl font-black text-white tracking-tight">Security Command Center</h1>
+          <p className="text-xs text-orange-200/70 font-mono mt-1">
+            Realtime AST posture across registered sandbox targets & live telemetry
           </p>
         </div>
 
         <Link
           href="/scan/new"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-white text-xs font-bold shadow-lg shadow-cyan-500/20 transition-all"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-gradient-to-r from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-slate-950 font-black text-xs shadow-xl shadow-orange-950/60 transition-all hover:scale-105"
         >
           <PlusCircle className="w-4 h-4" />
           <span>Launch New Scan</span>
@@ -50,155 +85,201 @@ export default function DashboardOverviewPage() {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1 */}
-        <div className="p-5 rounded-2xl border border-slate-800 bg-[#0b0e17]/80 backdrop-blur-md space-y-3">
-          <div className="flex items-center justify-between text-slate-400">
+        <div className="p-5 rounded-3xl border border-orange-500/20 bg-[#140a06]/90 backdrop-blur-md space-y-3 shadow-xl">
+          <div className="flex items-center justify-between text-orange-300">
             <span className="text-xs font-semibold font-mono uppercase">API Endpoints</span>
-            <Layers className="w-4 h-4 text-cyan-400" />
+            <Layers className="w-4 h-4 text-orange-400" />
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-black text-white font-mono">{totalEndpoints}</span>
-            <span className="text-xs text-emerald-400 font-medium">+4 new</span>
+            <span className="text-xs text-emerald-400 font-medium font-mono">+4 active</span>
           </div>
-          <p className="text-[11px] text-slate-500">Across 3 sandbox targets</p>
+          <p className="text-[11px] text-orange-200/60 font-mono">Parsed via OpenAPI 3.0 AST</p>
         </div>
 
         {/* Card 2 */}
-        <div className="p-5 rounded-2xl border border-slate-800 bg-[#0b0e17]/80 backdrop-blur-md space-y-3">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold font-mono uppercase">Total Findings</span>
+        <div className="p-5 rounded-3xl border border-orange-500/20 bg-[#140a06]/90 backdrop-blur-md space-y-3 shadow-xl">
+          <div className="flex items-center justify-between text-orange-300">
+            <span className="text-xs font-semibold font-mono uppercase">Risk Index Score</span>
             <Activity className="w-4 h-4 text-amber-400" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white font-mono">{totalFindings}</span>
-            <span className="text-xs text-rose-400 font-medium">100% verified</span>
+            <span className="text-3xl font-black text-orange-400 font-mono">{riskScore}/100</span>
+            <span className="text-xs text-rose-400 font-mono font-bold">Elevated</span>
           </div>
-          <p className="text-[11px] text-slate-500">Deterministic AST evidence</p>
+          <p className="text-[11px] text-orange-200/60 font-mono">BOLA authorization gap present</p>
         </div>
 
         {/* Card 3 */}
-        <div className="p-5 rounded-2xl border border-rose-950/40 bg-rose-950/10 backdrop-blur-md space-y-3 ring-1 ring-rose-500/20">
-          <div className="flex items-center justify-between text-rose-400">
-            <span className="text-xs font-semibold font-mono uppercase">Critical BOLA</span>
-            <Flame className="w-4 h-4 text-rose-500 animate-pulse" />
+        <div className="p-5 rounded-3xl border border-orange-500/20 bg-[#140a06]/90 backdrop-blur-md space-y-3 shadow-xl">
+          <div className="flex items-center justify-between text-orange-300">
+            <span className="text-xs font-semibold font-mono uppercase">Active Findings</span>
+            <ShieldAlert className="w-4 h-4 text-rose-400" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-rose-400 font-mono">{criticalCount}</span>
-            <span className="text-xs text-rose-300 font-medium">Immediate Action</span>
+            <span className="text-3xl font-black text-white font-mono">{totalFindings}</span>
+            <span className="text-xs text-rose-400 font-mono font-bold">{criticalCount} Critical</span>
           </div>
-          <p className="text-[11px] text-rose-300/60">Cross-tenant object leak</p>
+          <p className="text-[11px] text-orange-200/60 font-mono">Deterministic proof-of-concept</p>
         </div>
 
         {/* Card 4 */}
-        <div className="p-5 rounded-2xl border border-slate-800 bg-[#0b0e17]/80 backdrop-blur-md space-y-3">
-          <div className="flex items-center justify-between text-slate-400">
-            <span className="text-xs font-semibold font-mono uppercase">Risk Score</span>
-            <TrendingUp className="w-4 h-4 text-cyan-400" />
+        <div className="p-5 rounded-3xl border border-orange-500/20 bg-[#140a06]/90 backdrop-blur-md space-y-3 shadow-xl">
+          <div className="flex items-center justify-between text-orange-300">
+            <span className="text-xs font-semibold font-mono uppercase">Sandbox Engine</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-black text-white font-mono">{riskScore}</span>
-            <span className="text-xs text-slate-400 font-mono">/ 100</span>
+            <span className="text-3xl font-black text-emerald-400 font-mono">ONLINE</span>
           </div>
-          <p className="text-[11px] text-amber-400">High Risk Profile</p>
+          <p className="text-[11px] text-orange-200/60 font-mono">Port 4000 AST Testbed Ready</p>
         </div>
       </div>
 
-      {/* Main Grid: Critical Findings & Recent Scans */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left: Top Findings */}
-        <div className="lg:col-span-2 space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
-              <ShieldAlert className="w-4 h-4 text-rose-400" />
-              Top Actionable Vulnerabilities
-            </h2>
-            <Link
-              href="/dashboard/findings"
-              className="text-xs text-cyan-400 hover:text-cyan-300 transition-colors flex items-center gap-1"
-            >
-              <span>View All</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
+      {/* Live Red-Team vs. Blue-Team Visualizer Widget */}
+      <div className="p-6 rounded-3xl border border-orange-500/30 bg-[#0f0704] space-y-6 shadow-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-orange-500/20 pb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
+              <Zap className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+                <span>Live Red-Team vs. Blue-Team Attack Visualizer</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-mono bg-rose-500/20 text-rose-300 border border-rose-500/30 font-bold">
+                  SIMULATOR
+                </span>
+              </h2>
+              <p className="text-xs text-orange-300/70 font-mono mt-0.5">
+                Real-time cross-tenant packet injection vs. Zero-Trust AST Boundary containment
+              </p>
+            </div>
           </div>
 
-          <div className="space-y-3">
-            {SAMPLE_FINDINGS.map((finding) => (
-              <div
-                key={finding.id}
-                onClick={() => setSelectedFinding(finding)}
-                className="p-4 rounded-xl border border-slate-800 bg-[#0b0e17]/60 hover:bg-[#0f1422] hover:border-slate-700 cursor-pointer transition-all space-y-2 group"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`px-2 py-0.5 rounded text-[10px] font-bold border ${getSeverityBadgeColor(
-                        finding.severity
-                      )}`}
-                    >
-                      {finding.severity}
-                    </span>
-                    <span
-                      className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold border ${getMethodBadgeColor(
-                        finding.endpoint_method
-                      )}`}
-                    >
-                      {finding.endpoint_method}
-                    </span>
-                    <span className="text-xs font-mono text-slate-300 font-medium">
-                      {finding.endpoint_path}
-                    </span>
-                  </div>
+          <button
+            onClick={handleRunSimulation}
+            disabled={simulating}
+            className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-rose-600 via-orange-600 to-amber-600 hover:from-rose-500 hover:to-amber-500 text-white text-xs font-bold transition-all shadow-lg shadow-rose-950/60 disabled:opacity-50"
+          >
+            <Play className={`w-3.5 h-3.5 ${simulating ? "animate-spin" : ""}`} />
+            <span>{simulating ? "Injecting Attack Packets..." : "Simulate Live Attack"}</span>
+          </button>
+        </div>
 
-                  <span className="text-[11px] text-cyan-400 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <span>Inspect Evidence</span>
-                    <ArrowRight className="w-3.5 h-3.5" />
+        {/* Dual Panels */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Red Team (Attacker Probe) */}
+          <div className="p-4 rounded-2xl border border-rose-950/60 bg-rose-950/15 space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono font-bold text-rose-400 border-b border-rose-900/30 pb-2">
+              <span className="flex items-center gap-1.5">
+                <Flame className="w-4 h-4" />
+                <span>RED-TEAM PROBE (Attacker Vector)</span>
+              </span>
+              <span>TOKEN: user_alice (Forged)</span>
+            </div>
+            <p className="text-xs text-rose-200/80 leading-relaxed font-mono">
+              Replaying authentication bearer tokens across alien tenant object identifiers to trigger cross-boundary data leakage.
+            </p>
+          </div>
+
+          {/* Blue Team (Zero-Trust Guard) */}
+          <div className="p-4 rounded-2xl border border-emerald-950/60 bg-emerald-950/15 space-y-3">
+            <div className="flex items-center justify-between text-xs font-mono font-bold text-emerald-400 border-b border-emerald-900/30 pb-2">
+              <span className="flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>BLUE-TEAM SHIELD (AST Guard)</span>
+              </span>
+              <span>ZERO-TRUST: Active</span>
+            </div>
+            <p className="text-xs text-emerald-200/80 leading-relaxed font-mono">
+              Dynamic AST tenant boundary interceptor enforcing strictly scoped owner queries before database resolution.
+            </p>
+          </div>
+        </div>
+
+        {/* Live Packet Stream */}
+        <div className="space-y-2">
+          <div className="text-[11px] font-mono text-orange-400/80 uppercase tracking-wider font-bold">
+            Live Simulated Telemetry Stream:
+          </div>
+          <div className="rounded-2xl border border-orange-500/20 bg-black/60 overflow-hidden divide-y divide-orange-500/10 font-mono text-xs">
+            {simPackets.map((pkt) => (
+              <div key={pkt.id} className="p-3 flex items-center justify-between hover:bg-orange-500/10 transition-colors">
+                <div className="flex items-center gap-3">
+                  <span className="px-2 py-0.5 rounded bg-orange-950/80 text-orange-400 text-[10px] font-bold border border-orange-500/30">
+                    {pkt.method}
+                  </span>
+                  <span className="text-slate-200 font-semibold">{pkt.path}</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-slate-400">{pkt.status}</span>
+                  <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                    pkt.result === "BLOCKED"
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/30"
+                      : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                  }`}>
+                    {pkt.result}
                   </span>
                 </div>
-
-                <p className="text-xs text-slate-400 leading-relaxed line-clamp-1">
-                  {finding.summary}
-                </p>
               </div>
             ))}
           </div>
         </div>
+      </div>
 
-        {/* Right: Recent Scans History */}
-        <div className="space-y-4">
-          <h2 className="text-sm font-bold text-slate-200 uppercase tracking-wider font-mono flex items-center gap-2">
-            <Clock className="w-4 h-4 text-cyan-400" />
-            Latest Scan Runs
+      {/* Critical Findings Section */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white tracking-tight flex items-center gap-2">
+            <ShieldAlert className="w-5 h-5 text-rose-400" />
+            <span>High Priority Vulnerabilities</span>
           </h2>
+          <Link href="/dashboard/findings" className="text-xs text-orange-400 hover:text-orange-300 font-mono font-bold flex items-center gap-1">
+            <span>View All ({SAMPLE_FINDINGS.length})</span>
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
 
-          <div className="space-y-3">
-            {INITIAL_SCANS.map((scan) => (
-              <Link
-                key={scan.id}
-                href={`/dashboard/scans/${scan.id}`}
-                className="block p-4 rounded-xl border border-slate-800 bg-[#0b0e17]/60 hover:bg-[#0f1422] hover:border-cyan-500/30 transition-all space-y-2"
-              >
-                <div className="flex items-center justify-between text-xs">
-                  <span className="font-mono text-slate-300 font-semibold">{scan.id}</span>
-                  <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-semibold">
-                    COMPLETED
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {SAMPLE_FINDINGS.slice(0, 2).map((item) => (
+            <div
+              key={item.id}
+              onClick={() => setSelectedFinding(item)}
+              className="p-5 rounded-3xl border border-orange-500/20 bg-[#140a06]/90 hover:border-orange-500/50 transition-all cursor-pointer space-y-3 shadow-xl group"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${getSeverityBadgeColor(item.severity)}`}>
+                    {item.severity}
                   </span>
+                  <span className="text-xs font-mono text-orange-300 font-bold">{item.endpoint_method}</span>
                 </div>
+                <span className="text-[11px] font-mono text-orange-400/70">Score: {(item.confidence * 10).toFixed(1)}/10</span>
+              </div>
 
-                <p className="text-[11px] text-slate-400 font-mono truncate">{scan.targetUrl}</p>
+              <div>
+                <h3 className="text-sm font-bold text-white group-hover:text-orange-200 transition-colors">{item.title}</h3>
+                <p className="text-xs text-orange-200/70 line-clamp-2 mt-1 font-mono">{item.summary}</p>
+              </div>
 
-                <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-800/80">
-                  <span>{scan.endpointCount} endpoints</span>
-                  <span className="text-rose-400 font-semibold">
-                    {scan.counts.critical} Critical findings
-                  </span>
-                </div>
-              </Link>
-            ))}
-          </div>
+              <div className="pt-2 border-t border-orange-500/15 flex items-center justify-between text-[11px] font-mono text-orange-400">
+                <span>{item.endpoint_path}</span>
+                <span className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                  Inspect <ArrowRight className="w-3 h-3" />
+                </span>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
       {/* Evidence Modal */}
-      <EvidenceModal finding={selectedFinding} onClose={() => setSelectedFinding(null)} />
+      {selectedFinding && (
+        <EvidenceModal
+          finding={selectedFinding}
+          onClose={() => setSelectedFinding(null)}
+        />
+      )}
     </div>
   );
 }

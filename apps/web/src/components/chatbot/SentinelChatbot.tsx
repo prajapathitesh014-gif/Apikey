@@ -26,7 +26,9 @@ import {
   Activity,
   Server,
   ArrowRight,
-  Search
+  Mic,
+  MicOff,
+  Radio
 } from "lucide-react";
 import { toast } from "sonner";
 import { BrandIcon } from "@/components/ui/BrandLogo";
@@ -84,6 +86,7 @@ export function SentinelChatbot() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(true);
+  const [isListening, setIsListening] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([
@@ -92,9 +95,7 @@ export function SentinelChatbot() {
       role: "assistant",
       content: `👋 **Welcome to SecureMind AST Copilot!** 
 
-I am your interactive AI security assistant. I can guide you through scanning APIs, explaining **OWASP API Top 10 vulnerabilities (BOLA, Mass Assignment, Rate-Limiting)**, generating code fixes, and navigating this platform.
-
-Choose a topic below or type any question!`,
+I am your interactive AI security assistant. You can type or click the **Mic 🎙️** to speak your questions about API security, **BOLA/IDOR**, sandbox tests, or code remediation!`,
       followUps: [
         { label: "🚀 How to run an API scan?", query: "How to run an API scan?" },
         { label: "🛡️ What is BOLA/IDOR?", query: "Explain BOLA vulnerability" },
@@ -112,6 +113,62 @@ Choose a topic below or type any question!`,
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<any>(null);
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
+
+        recognition.onresult = (event: any) => {
+          const transcript = event.results[0][0].transcript;
+          if (transcript) {
+            setInput(transcript);
+            handleSendMessage(transcript);
+          }
+          setIsListening(false);
+        };
+
+        recognition.onerror = (event: any) => {
+          console.warn("Speech recognition error:", event.error);
+          setIsListening(false);
+          toast.error("Voice input error or permission denied.");
+        };
+
+        recognition.onend = () => {
+          setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+      }
+    }
+  }, []);
+
+  const toggleVoiceInput = () => {
+    if (!recognitionRef.current) {
+      toast.error("Voice recognition not supported in this browser. Please use Chrome/Edge.");
+      return;
+    }
+
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+        toast.info("🎙️ Listening... Speak your question now!");
+      } catch (e) {
+        recognitionRef.current.stop();
+        setIsListening(false);
+      }
+    }
+  };
 
   // Play subtle synth audio blip
   const playBeep = (freq = 600, type: OscillatorType = "sine", duration = 0.08) => {
@@ -543,9 +600,25 @@ Choose a topic below or type any question!`,
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Voice Listening Bar Indicator */}
+          {isListening && (
+            <div className="px-4 py-2 bg-gradient-to-r from-red-950/80 via-orange-950/80 to-amber-950/80 border-t border-red-500/40 flex items-center justify-between text-xs font-mono text-red-200 shrink-0 animate-pulse">
+              <div className="flex items-center gap-2">
+                <Radio className="w-4 h-4 text-red-400 animate-ping" />
+                <span className="font-bold">Listening to your voice... Speak your security question</span>
+              </div>
+              <button
+                onClick={toggleVoiceInput}
+                className="px-2 py-0.5 rounded bg-red-600 hover:bg-red-500 text-white text-[10px] font-bold"
+              >
+                Stop
+              </button>
+            </div>
+          )}
+
           {/* Quick Shortcuts Bar */}
           <div className="px-3 py-1.5 bg-black/60 border-t border-orange-500/10 flex items-center justify-between text-[11px] text-orange-400/70 font-mono shrink-0">
-            <span className="hidden sm:inline">⚡ Press Enter to send • Shift+Enter for new line</span>
+            <span className="hidden sm:inline">⚡ Press Enter or Click Mic to talk</span>
             <span className="text-emerald-400 flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
               Live Copilot Ready
@@ -566,10 +639,26 @@ Choose a topic below or type any question!`,
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask about scans, BOLA, fixes, sandbox, or pages..."
+                placeholder={isListening ? "Listening to your microphone..." : "Ask about scans, BOLA, fixes, sandbox, or pages..."}
                 className="w-full px-4 py-2.5 text-xs sm:text-sm bg-black/70 border border-orange-500/30 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-500/30 transition-all font-sans"
               />
             </div>
+
+            {/* Mic Button */}
+            <button
+              type="button"
+              onClick={toggleVoiceInput}
+              title={isListening ? "Stop listening" : "Speak with AI Copilot"}
+              className={`p-2.5 rounded-2xl border transition-all duration-300 shrink-0 ${
+                isListening
+                  ? "bg-red-600 border-red-400 text-white animate-bounce shadow-lg shadow-red-500/50"
+                  : "bg-orange-950/60 border-orange-500/30 text-orange-300 hover:bg-orange-500/20 hover:text-white"
+              }`}
+            >
+              {isListening ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4" />}
+            </button>
+
+            {/* Send Button */}
             <button
               type="submit"
               disabled={!input.trim() || loading}
