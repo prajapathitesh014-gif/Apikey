@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --background: #190e09;
+    --foreground: #ffffff;
+    --card: #ffffff;
+    --card-border: #e2e8f0;
+    --font-sans: var(--font-outfit), system-ui, -apple-system, sans-serif;
+    --font-mono: var(--font-mono), monospace;
+  }
+}
+
+body {
+  background: radial-gradient(circle at 50% 10%, #2e1710 0%, #1a0d08 60%, #0e0604 100%);
+  color: #1e293b;
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Warm Luxury Orange-Brown Ambient Glows */
+.bg-warm-canvas {
+  background: radial-gradient(circle at 50% 0%, #3d1c12 0%, #1e0d08 45%, #0f0604 100%);
+}
+
+.glow-warm-orange {
+  box-shadow: 0 20px 60px -15px rgba(234, 88, 12, 0.35);
+}
+
+.glow-warm-amber {
+  box-shadow: 0 10px 40px -10px rgba(245, 158, 11, 0.3);
+}
+
+/* Crisp Clean White App Container */
+.app-card-canvas {
+  background: #ffffff;
+  color: #0f172a;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 25px 70px -15px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.pill-badge-orange {
+  background-color: #fee2e2;
+  color: #ea580c;
+  border: 1px solid #fecaca;
+}
+
+/* Dark mode dashboard panels */
+.dark-panel {
+  background: #0f131f;
+  border: 1px solid #1e293b;
+  color: #f8fafc;
+}
+
+/* Orbiting Circles Animation */
+@keyframes orbit {
+  0% {
+    transform: rotate(calc(var(--angle) + 0deg)) translateY(calc(var(--radius) * -1)) rotate(calc(-1 * (var(--angle) + 0deg)));
+  }
+  100% {
+    transform: rotate(calc(var(--angle) + 360deg)) translateY(calc(var(--radius) * -1)) rotate(calc(-1 * (var(--angle) + 360deg)));
+  }
+}
+
+@keyframes orbit-reverse {
+  0% {
+    transform: rotate(calc(var(--angle) + 0deg)) translateY(calc(var(--radius) * -1)) rotate(calc(-1 * (var(--angle) + 0deg)));
+  }
+  100% {
+    transform: rotate(calc(var(--angle) - 360deg)) translateY(calc(var(--radius) * -1)) rotate(calc(-1 * (var(--angle) - 360deg)));
+  }
+}
+
+.animate-orbit {
+  animation: orbit var(--duration) linear infinite;
+}
+
+.animate-orbit-reverse {
+  animation: orbit-reverse var(--duration) linear infinite;
+}

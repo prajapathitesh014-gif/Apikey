@@ -1,0 +1,17 @@
+{
+  "name": "sentinelapi-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=apps/web",
+    "dev:scanner": "npm run dev --workspace=apps/scanner",
+    "dev:all": "npm run dev --workspace=apps/web",
+    "build": "npm run build --workspace=apps/web"
+  },
+  "dependencies": {
+    "@supabase/server": "^1.8.0"
+  }
+}
