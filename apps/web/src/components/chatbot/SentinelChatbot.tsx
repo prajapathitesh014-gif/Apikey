@@ -14,45 +14,95 @@ import {
   ShieldAlert, 
   Layers, 
   HelpCircle,
-  MessageSquare,
-  ChevronRight,
-  Terminal
+  Copy,
+  Check,
+  ThumbsUp,
+  ThumbsDown,
+  Volume2,
+  VolumeX,
+  Code2,
+  Flame,
+  Zap,
+  Activity,
+  Server,
+  ArrowRight,
+  Search
 } from "lucide-react";
+import { toast } from "sonner";
+import { BrandIcon } from "@/components/ui/BrandLogo";
+
+interface FollowUpPrompt {
+  label: string;
+  query: string;
+}
 
 interface QuickLink {
   label: string;
   href: string;
 }
 
+interface CodeSnippet {
+  language: string;
+  code: string;
+  description: string;
+}
+
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
+  codeSnippet?: CodeSnippet;
+  followUps?: FollowUpPrompt[];
   quickLinks?: QuickLink[];
   timestamp: string;
+  feedback?: "up" | "down";
 }
 
-const STARTER_PROMPTS = [
-  { icon: Sparkles, text: "How to run an API scan?" },
-  { icon: ShieldAlert, text: "What is BOLA / IDOR flaw?" },
-  { icon: Layers, text: "Where is the Demo Sandbox?" },
-  { icon: HelpCircle, text: "Give me a tour of all pages" },
+const CATEGORIES = [
+  { id: "all", label: "🌟 All Topics" },
+  { id: "scan", label: "🚀 Scanning" },
+  { id: "vuln", label: "🛡️ OWASP Flaws" },
+  { id: "code", label: "🛠️ Fixes" },
+  { id: "sandbox", label: "🧪 Sandbox" },
+  { id: "tour", label: "🗺️ Platform Tour" }
+];
+
+const PRESET_QUESTIONS = [
+  { category: "scan", text: "How to run an AST API scan?", icon: Zap },
+  { category: "vuln", text: "Explain BOLA / IDOR vulnerability", icon: ShieldAlert },
+  { category: "vuln", text: "What is Mass Assignment flaw?", icon: Flame },
+  { category: "code", text: "How to fix Rate Limiting issues?", icon: Code2 },
+  { category: "sandbox", text: "Where is the demo sandbox?", icon: Server },
+  { category: "tour", text: "Give me a tour of all pages", icon: HelpCircle },
+  { category: "scan", text: "How to export security reports?", icon: Activity },
 ];
 
 export function SentinelChatbot() {
   const [isOpen, setIsOpen] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [activeCategory, setActiveCategory] = useState("all");
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome-msg",
       role: "assistant",
-      content: `👋 **Welcome to SentinelAPI!** I'm your AI Security Copilot. 
+      content: `👋 **Welcome to SecureMind AST Copilot!** 
 
-Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/IDOR**, test the **Demo Sandbox**, or navigate around the platform!`,
+I am your interactive AI security assistant. I can guide you through scanning APIs, explaining **OWASP API Top 10 vulnerabilities (BOLA, Mass Assignment, Rate-Limiting)**, generating code fixes, and navigating this platform.
+
+Choose a topic below or type any question!`,
+      followUps: [
+        { label: "🚀 How to run an API scan?", query: "How to run an API scan?" },
+        { label: "🛡️ What is BOLA/IDOR?", query: "Explain BOLA vulnerability" },
+        { label: "🧪 Where is the demo sandbox?", query: "Where is the demo sandbox?" },
+        { label: "🗺️ Tour of all pages", query: "Give me a tour of all pages" }
+      ],
       quickLinks: [
-        { label: "🚀 Start New Scan", href: "/scan/new" },
+        { label: "🚀 Launch Scan", href: "/scan/new" },
         { label: "📊 Go to Dashboard", href: "/dashboard" },
         { label: "🛡️ View Findings", href: "/dashboard/findings" }
       ],
@@ -62,6 +112,26 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Play subtle synth audio blip
+  const playBeep = (freq = 600, type: OscillatorType = "sine", duration = 0.08) => {
+    if (!soundEnabled || typeof window === "undefined") return;
+    try {
+      const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContext) return;
+      const ctx = new AudioContext();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.setValueAtTime(0.04, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch {}
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -74,9 +144,26 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
     }
   }, [isOpen, messages]);
 
+  // Keyboard shortcut Ctrl+K / Cmd+K to toggle
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+      }
+      if (e.key === "Escape" && isOpen) {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen]);
+
   const handleSendMessage = async (textToSend?: string) => {
     const text = textToSend || input.trim();
     if (!text || loading) return;
+
+    playBeep(480, "triangle", 0.06);
 
     const userMessage: Message = {
       id: `user-${Date.now()}`,
@@ -98,10 +185,14 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
 
       const data = await res.json();
 
+      playBeep(720, "sine", 0.1);
+
       const botMessage: Message = {
         id: `bot-${Date.now()}`,
         role: "assistant",
-        content: data.reply || "I'm sorry, I couldn't process that. Please try again.",
+        content: data.reply || "I couldn't find specific information for that query. Please select one of the suggested topics below.",
+        codeSnippet: data.codeSnippet,
+        followUps: data.followUps || [],
         quickLinks: data.quickLinks || [],
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
@@ -123,12 +214,31 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
     }
   };
 
+  const handleCopyCode = (code: string, id: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedId(id);
+    toast.success("Code copied to clipboard!");
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
+  const handleFeedback = (messageId: string, type: "up" | "down") => {
+    setMessages(prev =>
+      prev.map(m => (m.id === messageId ? { ...m, feedback: type } : m))
+    );
+    toast.success(type === "up" ? "Thanks for your feedback! 👍" : "Feedback noted. We're improving! 🛠️");
+  };
+
   const handleClearHistory = () => {
     setMessages([
       {
         id: `welcome-${Date.now()}`,
         role: "assistant",
-        content: "🧹 Chat cleared! How can I assist you with SentinelAPI today?",
+        content: "🧹 Chat cleared! What would you like to explore next?",
+        followUps: [
+          { label: "🚀 How to run an API scan?", query: "How to run an API scan?" },
+          { label: "🛡️ What is BOLA/IDOR?", query: "Explain BOLA vulnerability" },
+          { label: "🧪 Where is the demo sandbox?", query: "Where is the demo sandbox?" }
+        ],
         quickLinks: [
           { label: "🚀 Start New Scan", href: "/scan/new" },
           { label: "📊 Go to Dashboard", href: "/dashboard" }
@@ -138,32 +248,37 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
     ]);
   };
 
+  const filteredQuestions = activeCategory === "all"
+    ? PRESET_QUESTIONS
+    : PRESET_QUESTIONS.filter(q => q.category === activeCategory);
+
   const formatContent = (text: string) => {
-    // Process markdown-like lines, bolding, and code
     const lines = text.split("\n");
     return lines.map((line, idx) => {
-      // Bold handling
       let formattedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-orange-300 font-semibold">$1</strong>');
-      // Inline code
-      formattedLine = formattedLine.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-black/50 text-orange-400 font-mono text-xs border border-orange-500/20">$1</code>');
-      // Markdown link [text](url)
-      formattedLine = formattedLine.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-orange-400 hover:text-orange-300 underline underline-offset-2">$1</a>');
+      formattedLine = formattedLine.replace(/`([^`]+)`/g, '<code class="px-1.5 py-0.5 rounded bg-black/60 text-orange-300 font-mono text-[11px] sm:text-xs border border-orange-500/20">$1</code>');
+      formattedLine = formattedLine.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-orange-400 hover:text-orange-200 underline underline-offset-2 font-medium">$1</a>');
 
+      if (line.startsWith("### ")) {
+        return (
+          <h4 key={idx} className="text-orange-200 font-bold text-xs sm:text-sm mt-2.5 mb-1 flex items-center gap-1.5" dangerouslySetInnerHTML={{ __html: formattedLine.substring(4) }} />
+        );
+      }
       if (line.startsWith("• ") || line.startsWith("- ")) {
         return (
-          <li key={idx} className="ml-4 list-disc text-slate-300 my-1 leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine.substring(2) }} />
+          <li key={idx} className="ml-3.5 list-disc text-slate-300 my-0.5 leading-relaxed text-[12px] sm:text-xs" dangerouslySetInnerHTML={{ __html: formattedLine.substring(2) }} />
         );
       }
       if (/^\d+\.\s/.test(line)) {
         return (
-          <div key={idx} className="ml-3 my-1 text-slate-300 flex items-start gap-1.5 leading-relaxed" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+          <div key={idx} className="ml-2 my-0.5 text-slate-300 flex items-start gap-1 leading-relaxed text-[12px] sm:text-xs" dangerouslySetInnerHTML={{ __html: formattedLine }} />
         );
       }
       if (!line.trim()) {
-        return <div key={idx} className="h-2" />;
+        return <div key={idx} className="h-1.5" />;
       }
       return (
-        <p key={idx} className="text-slate-200 leading-relaxed my-1" dangerouslySetInnerHTML={{ __html: formattedLine }} />
+        <p key={idx} className="text-slate-200 leading-relaxed my-0.5 text-[12px] sm:text-xs" dangerouslySetInnerHTML={{ __html: formattedLine }} />
       );
     });
   };
@@ -173,17 +288,23 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
       {/* Floating Trigger Button */}
       {!isOpen && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3">
-          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#1e0e07]/90 border border-orange-500/30 text-xs text-orange-300 backdrop-blur-md shadow-lg shadow-black/60 animate-bounce">
-            <Sparkles className="w-3.5 h-3.5 text-orange-400" />
-            <span>Need help? Ask AI Copilot</span>
+          <div 
+            onClick={() => setIsOpen(true)}
+            className="cursor-pointer hidden md:flex items-center gap-2 px-3.5 py-2 rounded-full bg-[#1c0d06]/95 border border-orange-500/30 text-xs text-orange-200 backdrop-blur-md shadow-2xl shadow-black/80 hover:border-orange-400 hover:scale-105 transition-all group"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-orange-400 animate-pulse" />
+            <span className="font-semibold">Ask Copilot</span>
+            <kbd className="px-1.5 py-0.2 rounded bg-orange-950/80 text-[10px] font-mono text-orange-400 border border-orange-500/30">
+              Ctrl+K
+            </kbd>
           </div>
 
           <button
             onClick={() => setIsOpen(true)}
-            aria-label="Open AI Assistant"
-            className="group relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 text-white shadow-xl shadow-orange-950/60 hover:shadow-orange-500/40 hover:scale-105 active:scale-95 transition-all duration-300 border border-orange-400/40"
+            aria-label="Open AI Security Assistant"
+            className="group relative flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 text-white shadow-2xl shadow-orange-950/80 hover:shadow-orange-500/50 hover:scale-105 active:scale-95 transition-all duration-300 border border-orange-300/40"
           >
-            <Bot className="w-7 h-7 group-hover:rotate-12 transition-transform duration-300" />
+            <BrandIcon size="sm" withGlow={false} />
             <span className="absolute -top-1 -right-1 flex h-3.5 w-3.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-orange-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-3.5 w-3.5 bg-orange-500 border-2 border-[#120703]"></span>
@@ -192,31 +313,38 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
         </div>
       )}
 
-      {/* Chatbot Window */}
+      {/* Advanced Chatbot Drawer / Modal */}
       {isOpen && (
         <div
-          className={`fixed z-50 transition-all duration-300 flex flex-col bg-[#140a06]/95 border border-orange-500/30 rounded-2xl shadow-2xl shadow-black/80 backdrop-blur-xl overflow-hidden ${
+          className={`fixed z-50 transition-all duration-300 flex flex-col bg-[#120703]/98 border border-orange-500/30 rounded-3xl shadow-2xl shadow-black/90 backdrop-blur-2xl overflow-hidden ${
             isExpanded
-              ? "inset-4 md:inset-10 w-auto h-auto max-w-4xl mx-auto"
-              : "bottom-6 right-6 w-[92vw] sm:w-[420px] h-[580px] max-h-[85vh]"
+              ? "inset-3 md:inset-8 w-auto h-auto max-w-5xl mx-auto"
+              : "bottom-4 right-4 sm:bottom-6 sm:right-6 w-[94vw] sm:w-[460px] h-[640px] max-h-[90vh]"
           }`}
         >
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3.5 bg-gradient-to-r from-orange-950/80 via-[#1c0d06] to-[#140a06] border-b border-orange-500/20">
+          <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-orange-950/90 via-[#1a0c06] to-[#120703] border-b border-orange-500/20 shrink-0">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-orange-500/20 border border-orange-500/40 flex items-center justify-center text-orange-400">
-                <Bot className="w-5 h-5" />
-              </div>
+              <BrandIcon size="sm" />
               <div>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-sm font-semibold text-orange-100 font-sans">Sentinel AI Copilot</span>
-                  <span className="px-1.5 py-0.2 rounded text-[10px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">ONLINE</span>
+                  <span className="text-sm font-bold text-white font-sans">SecureMind Copilot</span>
+                  <span className="px-1.5 py-0.2 rounded text-[9px] font-mono bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                    AST ENGINE v2.0
+                  </span>
                 </div>
-                <p className="text-[11px] text-orange-400/70">Interactive Website Guide & AST Scanner</p>
+                <p className="text-[10px] text-orange-300/70 font-mono">Autonomous API Vulnerability Guide</p>
               </div>
             </div>
 
             <div className="flex items-center gap-1 text-slate-400">
+              <button
+                onClick={() => setSoundEnabled(!soundEnabled)}
+                title={soundEnabled ? "Mute audio" : "Enable sound"}
+                className="p-1.5 hover:text-orange-300 hover:bg-orange-500/10 rounded-lg transition-colors"
+              >
+                {soundEnabled ? <Volume2 className="w-4 h-4 text-orange-400" /> : <VolumeX className="w-4 h-4 text-slate-500" />}
+              </button>
               <button
                 onClick={handleClearHistory}
                 title="Clear Chat History"
@@ -233,7 +361,7 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
               </button>
               <button
                 onClick={() => setIsOpen(false)}
-                title="Close"
+                title="Close (Esc)"
                 className="p-1.5 hover:text-orange-300 hover:bg-orange-500/10 rounded-lg transition-colors"
               >
                 <X className="w-5 h-5" />
@@ -241,25 +369,42 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
             </div>
           </div>
 
-          {/* Quick Prompts Banner */}
-          <div className="px-3 py-2 bg-black/40 border-b border-orange-500/10 overflow-x-auto flex gap-1.5 scrollbar-none">
-            {STARTER_PROMPTS.map((prompt, i) => {
-              const Icon = prompt.icon;
+          {/* Interactive Topic Categorization Tabs */}
+          <div className="px-3 py-2 bg-black/50 border-b border-orange-500/10 overflow-x-auto flex items-center gap-1.5 scrollbar-none shrink-0">
+            {CATEGORIES.map(cat => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategory(cat.id)}
+                className={`whitespace-nowrap px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${
+                  activeCategory === cat.id
+                    ? "bg-orange-600 text-white shadow-sm shadow-orange-950 font-semibold"
+                    : "bg-orange-950/30 text-orange-300/80 hover:bg-orange-500/20 hover:text-orange-200 border border-orange-500/10"
+                }`}
+              >
+                {cat.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Quick Preset Question Cards */}
+          <div className="px-3 py-2 bg-[#170a04]/90 border-b border-orange-500/15 overflow-x-auto flex gap-2 scrollbar-none shrink-0">
+            {filteredQuestions.map((q, i) => {
+              const Icon = q.icon;
               return (
                 <button
                   key={i}
-                  onClick={() => handleSendMessage(prompt.text)}
+                  onClick={() => handleSendMessage(q.text)}
                   disabled={loading}
-                  className="whitespace-nowrap flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-orange-950/40 hover:bg-orange-500/20 border border-orange-500/20 text-orange-200 transition-all active:scale-95 disabled:opacity-50"
+                  className="whitespace-nowrap flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-medium bg-gradient-to-r from-orange-950/60 to-amber-950/40 hover:from-orange-600/30 hover:to-amber-500/30 border border-orange-500/25 text-orange-200 hover:text-white transition-all active:scale-95 disabled:opacity-50 group"
                 >
-                  <Icon className="w-3 h-3 text-orange-400" />
-                  <span>{prompt.text}</span>
+                  <Icon className="w-3 h-3 text-orange-400 group-hover:scale-110 transition-transform" />
+                  <span>{q.text}</span>
                 </button>
               );
             })}
           </div>
 
-          {/* Messages Area */}
+          {/* Messages Feed */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4 text-xs sm:text-sm">
             {messages.map((msg) => (
               <div
@@ -267,31 +412,84 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
                 className={`flex gap-2.5 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
               >
                 {msg.role === "assistant" && (
-                  <div className="w-7 h-7 rounded-lg bg-orange-600/30 border border-orange-500/30 flex items-center justify-center text-orange-400 flex-shrink-0 mt-1">
+                  <div className="w-7 h-7 rounded-xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0 mt-0.5">
                     <Bot className="w-4 h-4" />
                   </div>
                 )}
 
                 <div
-                  className={`max-w-[85%] rounded-2xl p-3.5 ${
+                  className={`max-w-[88%] rounded-2xl p-3.5 space-y-2.5 ${
                     msg.role === "user"
-                      ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-br-none shadow-md shadow-orange-950/40"
-                      : "bg-[#1f110a]/90 border border-orange-500/20 text-slate-200 rounded-bl-none shadow-lg shadow-black/40"
+                      ? "bg-gradient-to-r from-orange-600 to-amber-600 text-white rounded-br-none shadow-md shadow-orange-950/50"
+                      : "bg-[#1a0d07]/90 border border-orange-500/20 text-slate-200 rounded-bl-none shadow-xl shadow-black/50"
                   }`}
                 >
-                  <div className="text-xs sm:text-[13px]">
-                    {formatContent(msg.content)}
-                  </div>
+                  {/* Text Content */}
+                  <div>{formatContent(msg.content)}</div>
 
-                  {/* Quick Action Navigation Buttons */}
+                  {/* Code Snippet Block if present */}
+                  {msg.codeSnippet && (
+                    <div className="rounded-xl overflow-hidden border border-orange-500/30 bg-black/80 my-2">
+                      <div className="flex items-center justify-between px-3 py-1.5 bg-orange-950/60 border-b border-orange-500/20 text-[11px] font-mono text-orange-300">
+                        <span className="flex items-center gap-1.5">
+                          <Code2 className="w-3.5 h-3.5 text-orange-400" />
+                          <span>{msg.codeSnippet.description}</span>
+                        </span>
+                        <button
+                          onClick={() => handleCopyCode(msg.codeSnippet!.code, msg.id)}
+                          className="flex items-center gap-1 px-2 py-0.5 rounded bg-orange-500/20 hover:bg-orange-500/40 text-orange-200 hover:text-white transition-colors"
+                        >
+                          {copiedId === msg.id ? (
+                            <>
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span className="text-emerald-300">Copied</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3 h-3" />
+                              <span>Copy</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                      <pre className="p-3 text-[11px] font-mono text-orange-200/90 overflow-x-auto leading-relaxed">
+                        <code>{msg.codeSnippet.code}</code>
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Dynamic Follow-up Question Chips */}
+                  {msg.followUps && msg.followUps.length > 0 && (
+                    <div className="pt-2 border-t border-orange-500/15 space-y-1.5">
+                      <p className="text-[10px] font-mono uppercase tracking-wider text-orange-400/80 font-bold flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-400" />
+                        <span>Suggested Next Questions:</span>
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {msg.followUps.map((f, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => handleSendMessage(f.query)}
+                            disabled={loading}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium bg-orange-500/15 hover:bg-orange-500/30 border border-orange-500/25 text-orange-200 hover:text-white transition-all active:scale-95 group text-left"
+                          >
+                            <span>{f.label}</span>
+                            <ArrowRight className="w-2.5 h-2.5 text-orange-400 group-hover:translate-x-0.5 transition-transform" />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Quick Action Navigation Links */}
                   {msg.quickLinks && msg.quickLinks.length > 0 && (
-                    <div className="mt-3 pt-2.5 border-t border-orange-500/20 flex flex-wrap gap-1.5">
+                    <div className="pt-2 border-t border-orange-500/15 flex flex-wrap gap-1.5">
                       {msg.quickLinks.map((link, idx) => (
                         <Link
                           key={idx}
                           href={link.href}
                           onClick={() => setIsOpen(false)}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-orange-500/20 hover:bg-orange-500/30 border border-orange-500/30 text-orange-200 hover:text-white transition-all shadow-sm group"
+                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold bg-gradient-to-r from-orange-600/30 to-amber-600/30 hover:from-orange-500/40 hover:to-amber-500/40 border border-orange-500/40 text-orange-100 hover:text-white transition-all shadow-sm group"
                         >
                           <span>{link.label}</span>
                           <ArrowUpRight className="w-3 h-3 text-orange-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
@@ -300,8 +498,29 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
                     </div>
                   )}
 
-                  <div className="text-[10px] text-right mt-1.5 opacity-50 font-mono">
-                    {msg.timestamp}
+                  {/* Footer & Feedback */}
+                  <div className="flex items-center justify-between text-[10px] text-orange-300/50 font-mono pt-1">
+                    <span>{msg.timestamp}</span>
+                    {msg.role === "assistant" && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleFeedback(msg.id, "up")}
+                          className={`p-1 rounded hover:bg-orange-500/20 transition-colors ${
+                            msg.feedback === "up" ? "text-emerald-400" : "hover:text-slate-200"
+                          }`}
+                        >
+                          <ThumbsUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          onClick={() => handleFeedback(msg.id, "down")}
+                          className={`p-1 rounded hover:bg-orange-500/20 transition-colors ${
+                            msg.feedback === "down" ? "text-rose-400" : "hover:text-slate-200"
+                          }`}
+                        >
+                          <ThumbsDown className="w-3 h-3" />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -309,18 +528,28 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
 
             {loading && (
               <div className="flex gap-2.5 items-center">
-                <div className="w-7 h-7 rounded-lg bg-orange-600/30 border border-orange-500/30 flex items-center justify-center text-orange-400 flex-shrink-0">
+                <div className="w-7 h-7 rounded-xl bg-orange-600/20 border border-orange-500/30 flex items-center justify-center text-orange-400 shrink-0">
                   <Bot className="w-4 h-4 animate-spin" />
                 </div>
-                <div className="bg-[#1f110a] border border-orange-500/20 rounded-2xl p-3 rounded-bl-none flex items-center gap-1.5">
+                <div className="bg-[#1a0d07] border border-orange-500/20 rounded-2xl p-3 rounded-bl-none flex items-center gap-1.5 shadow-lg">
                   <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
                   <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse [animation-delay:0.2s]"></span>
                   <span className="w-2 h-2 rounded-full bg-orange-400 animate-pulse [animation-delay:0.4s]"></span>
+                  <span className="text-[11px] font-mono text-orange-400/80 ml-1.5">Analyzing AST knowledge...</span>
                 </div>
               </div>
             )}
 
             <div ref={messagesEndRef} />
+          </div>
+
+          {/* Quick Shortcuts Bar */}
+          <div className="px-3 py-1.5 bg-black/60 border-t border-orange-500/10 flex items-center justify-between text-[11px] text-orange-400/70 font-mono shrink-0">
+            <span className="hidden sm:inline">⚡ Press Enter to send • Shift+Enter for new line</span>
+            <span className="text-emerald-400 flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+              Live Copilot Ready
+            </span>
           </div>
 
           {/* Input Footer */}
@@ -329,7 +558,7 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
               e.preventDefault();
               handleSendMessage();
             }}
-            className="p-3 bg-[#110703] border-t border-orange-500/20 flex items-center gap-2"
+            className="p-3 bg-[#0d0401] border-t border-orange-500/20 flex items-center gap-2 shrink-0"
           >
             <div className="relative flex-1">
               <input
@@ -337,14 +566,14 @@ Ask me anything about how to scan your APIs, find vulnerabilities like **BOLA/ID
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
-                placeholder="Ask anything about SentinelAPI or security..."
-                className="w-full px-3.5 py-2.5 text-xs sm:text-sm bg-black/60 border border-orange-500/30 rounded-xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-400 focus:ring-1 focus:ring-orange-400/50 transition-all font-sans"
+                placeholder="Ask about scans, BOLA, fixes, sandbox, or pages..."
+                className="w-full px-4 py-2.5 text-xs sm:text-sm bg-black/70 border border-orange-500/30 rounded-2xl text-slate-100 placeholder-slate-500 focus:outline-none focus:border-orange-400 focus:ring-2 focus:ring-orange-500/30 transition-all font-sans"
               />
             </div>
             <button
               type="submit"
               disabled={!input.trim() || loading}
-              className="p-2.5 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 hover:from-orange-500 hover:to-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-md shadow-orange-950/60 active:scale-95 flex-shrink-0"
+              className="p-2.5 rounded-2xl bg-gradient-to-tr from-orange-600 via-amber-500 to-orange-500 hover:from-orange-500 hover:to-amber-400 text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-lg shadow-orange-950/60 active:scale-95 shrink-0 border border-orange-300/30"
             >
               <Send className="w-4 h-4" />
             </button>
